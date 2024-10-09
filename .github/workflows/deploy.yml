@@ -3,7 +3,7 @@ name: Deploy BlackChat to VPS
 on:
   push:
     branches:
-      - main  # Run on pushes to the main branch
+      - master  # Run on pushes to the main branch
 
 jobs:
   deploy:
