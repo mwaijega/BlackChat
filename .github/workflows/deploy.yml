@@ -3,7 +3,8 @@ name: Deploy BlackChat to VPS
 on:
   push:
     branches:
-      - master  # Run on pushes to the main branch
+      - master  # Run on pushes to the master branch
+  workflow_dispatch:  # Allows manual triggering
 
 jobs:
   deploy:
@@ -13,14 +14,16 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v2
 
+    - name: Install sshpass
+      run: sudo apt-get install -y sshpass  # Install sshpass to handle passphrase
+
     - name: Set up SSH
-      uses: webfactory/ssh-agent@v0.5.3
-      with:
-        ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+      run: |
+        echo "${{ secrets.SSH_PRIVATE_KEY }}" > private_key && chmod 600 private_key  # Write private key to a file
 
     - name: Deploy BlackChat to VPS
       run: |
-        ssh -o StrictHostKeyChecking=no ${{ secrets.VPS_USER }}@${{ secrets.VPS_IP }} "
+        sshpass -p "${{ secrets.SSH_PASSPHRASE }}" ssh -o StrictHostKeyChecking=no -i private_key ${{ secrets.VPS_USER }}@${{ secrets.VPS_IP }} "
         # Create the project directory if it doesn't exist
         mkdir -p /home/projects/BlackChat &&
         cd /home/projects/BlackChat &&
@@ -31,8 +34,8 @@ jobs:
         fi &&
         
         # Pull the latest code from the main branch
-        git pull origin main &&
-
+        git pull origin master &&  # Ensure this matches your main branch name
+        
         # Create a virtual environment if it doesn't exist
         if [ ! -d venv ]; then
           python3 -m venv venv;
@@ -46,6 +49,6 @@ jobs:
 
     - name: Restart FastAPI service
       run: |
-        ssh -o StrictHostKeyChecking=no ${{ secrets.VPS_USER }}@${{ secrets.VPS_IP }} "
+        sshpass -p "${{ secrets.SSH_PASSPHRASE }}" ssh -o StrictHostKeyChecking=no -i private_key ${{ secrets.VPS_USER }}@${{ secrets.VPS_IP }} "
         sudo systemctl restart blackchat
         "
