@@ -25,6 +25,9 @@ jobs:
     - name: Deploy BlackChat to VPS
       run: |
         ssh -o StrictHostKeyChecking=no -i private_key ${{ secrets.VPS_USER }}@${{ secrets.VPS_IP }} "
+        # Install python3-venv package if not already installed
+        sudo apt update && sudo apt install -y python3-venv &&
+
         # Create the project directory if it doesn't exist
         mkdir -p /home/projects/BlackChat &&
         cd /home/projects/BlackChat &&
