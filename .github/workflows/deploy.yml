@@ -14,20 +14,17 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v2
 
-    - name: Install sshpass
-      run: sudo apt-get install -y sshpass  # Install sshpass to handle passphrase
-
     - name: Set up SSH
       run: |
         echo "${{ secrets.SSH_PRIVATE_KEY }}" > private_key && chmod 600 private_key  # Write private key to a file
 
     - name: Test SSH Connection
       run: |
-        sshpass -p "${{ secrets.SSH_PASSPHRASE }}" ssh -o StrictHostKeyChecking=no -o ConnectTimeout=10 -i private_key ${{ secrets.VPS_USER }}@${{ secrets.VPS_IP }} "echo 'SSH Connection Successful'"
+        ssh -o StrictHostKeyChecking=no -i private_key ${{ secrets.VPS_USER }}@${{ secrets.VPS_IP }} "echo 'SSH Connection Successful'"
 
     - name: Deploy BlackChat to VPS
       run: |
-        sshpass -p "${{ secrets.SSH_PASSPHRASE }}" ssh -o StrictHostKeyChecking=no -o ConnectTimeout=10 -i private_key ${{ secrets.VPS_USER }}@${{ secrets.VPS_IP }} "
+        ssh -o StrictHostKeyChecking=no -i private_key ${{ secrets.VPS_USER }}@${{ secrets.VPS_IP }} "
         # Create the project directory if it doesn't exist
         mkdir -p /home/projects/BlackChat &&
         cd /home/projects/BlackChat &&
@@ -53,6 +50,6 @@ jobs:
 
     - name: Restart FastAPI service
       run: |
-        sshpass -p "${{ secrets.SSH_PASSPHRASE }}" ssh -o StrictHostKeyChecking=no -o ConnectTimeout=10 -i private_key ${{ secrets.VPS_USER }}@${{ secrets.VPS_IP }} "
+        ssh -o StrictHostKeyChecking=no -i private_key ${{ secrets.VPS_USER }}@${{ secrets.VPS_IP }} "
         sudo systemctl restart blackchat
         "
