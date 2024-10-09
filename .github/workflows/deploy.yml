@@ -1,3 +1,28 @@
+name: Deploy BlackChat to VPS
+
+on:
+  push:
+    branches:
+      - master  # Run on pushes to the master branch
+  workflow_dispatch:  # Allows manual triggering
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v2
+
+    - name: Set up SSH
+      run: |
+        echo "${{ secrets.SSH_PRIVATE_KEY }}" > private_key
+        chmod 600 private_key  # Set proper permissions for the key
+      
+    - name: Test SSH Connection
+      run: |
+        ssh -o StrictHostKeyChecking=no -i private_key ${{ secrets.VPS_USER }}@${{ secrets.VPS_IP }} "echo 'SSH Connection Successful'"
+
     - name: Deploy BlackChat to VPS
       run: |
         ssh -o StrictHostKeyChecking=no -i private_key ${{ secrets.VPS_USER }}@${{ secrets.VPS_IP }} "
@@ -5,7 +30,7 @@
         
         # Install python3-venv package if not already installed
         sudo apt update && sudo apt install -y python3-venv &&
-
+        
         # Create the project directory if it doesn't exist
         mkdir -p /home/projects/BlackChat &&
         cd /home/projects/BlackChat &&
@@ -32,6 +57,8 @@
         python --version &&
         pip install --upgrade pip &&
         pip install -r requirements.txt
+        "
+
     - name: Restart FastAPI service
       run: |
         ssh -o StrictHostKeyChecking=no -i private_key ${{ secrets.VPS_USER }}@${{ secrets.VPS_IP }} "
