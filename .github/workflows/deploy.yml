@@ -3,7 +3,7 @@ name: Deploy BlackChat to VPS
 on:
   push:
     branches:
-      - main  # Trigger deployment on push to the main branch
+      - main  # Run on pushes to the main branch
 
 jobs:
   deploy:
@@ -13,19 +13,39 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v2
 
-    - name: Set up SSH for VPS access
+    - name: Set up SSH
       uses: webfactory/ssh-agent@v0.5.3
       with:
         ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
 
     - name: Deploy BlackChat to VPS
       run: |
-        ssh -o StrictHostKeyChecking=no ${{ secrets.VPS_USER }}@${{ secrets.VPS_IP }} "mkdir -p /home/projects/BlackChat"
-        rsync -avz --exclude '.git' --exclude '.github' ./ ${{ secrets.VPS_USER }}@${{ secrets.VPS_IP }}:/home/projects/BlackChat
+        ssh -o StrictHostKeyChecking=no ${{ secrets.VPS_USER }}@${{ secrets.VPS_IP }} "
+        # Create the project directory if it doesn't exist
+        mkdir -p /home/projects/BlackChat &&
+        cd /home/projects/BlackChat &&
+        
+        # If there's no git repository, clone it
+        if [ ! -d .git ]; then
+          git clone https://github.com/ministerko/BlackChat.git .;
+        fi &&
+        
+        # Pull the latest code from the main branch
+        git pull origin main &&
 
-    - name: Restart FastAPI service for BlackChat
+        # Create a virtual environment if it doesn't exist
+        if [ ! -d venv ]; then
+          python3 -m venv venv;
+        fi &&
+        
+        # Activate the virtual environment and install dependencies
+        source venv/bin/activate &&
+        pip install --upgrade pip &&
+        pip install -r requirements.txt
+        "
+
+    - name: Restart FastAPI service
       run: |
         ssh -o StrictHostKeyChecking=no ${{ secrets.VPS_USER }}@${{ secrets.VPS_IP }} "
-        cd /home/projects/BlackChat &&
-        sudo systemctl restart blackchat  # Replace 'blackchat' with the correct service name or use your start command directly
+        sudo systemctl restart blackchat
         "
