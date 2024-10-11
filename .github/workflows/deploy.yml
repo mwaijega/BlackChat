@@ -56,7 +56,7 @@ jobs:
         source venv/bin/activate &&
         python --version &&
         pip install --upgrade pip &&
-        pip install -r requirements.txt
+        pip install -r requirements.2.txt
         "
 
     - name: Restart FastAPI service
