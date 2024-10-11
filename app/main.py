@@ -45,7 +45,7 @@ async def login(user: UserLogin, db: Session = Depends(get_db)):
     return {"access_token": access_token, "token_type": "bearer"}
 
 # Send message (message stored until read)
-@app.post("/send_message/")
+@app.post("/send/")
 async def send_message(message: Message, token: str = Depends(get_current_user), db: Session = Depends(get_db)):
     expiration_time = datetime.utcnow() + timedelta(seconds=message.expires_in)
 
@@ -63,7 +63,7 @@ async def send_message(message: Message, token: str = Depends(get_current_user),
     return {"status": "Message sent"}
 
 # Receive message and mark it as read
-@app.get("/receive_message/{recipient}")
+@app.get("/receive/{recipient}")
 async def receive_message(recipient: str, token: str = Depends(get_current_user), db: Session = Depends(get_db)):
     message = db.query(MessageModel).filter(MessageModel.recipient == recipient).first()
     
