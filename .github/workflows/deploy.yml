@@ -39,13 +39,14 @@ jobs:
           # Configure Git to treat the directory as safe
           git config --global --add safe.directory /home/projects/BlackChat
 
-          # If there's no git repository, clone it
-          if [ ! -d .git ]; then
-            git clone https://github.com/ministerko/BlackChat.git .
-          fi
+          # Stash any local changes before pulling
+          git stash || echo 'No local changes to stash'
 
-          # Pull the latest code from the master branch
+          # Pull the latest changes from the master branch
           git pull origin master
+
+          # Apply stashed changes if any
+          git stash pop || echo 'No stashed changes to apply'
 
           # Create a virtual environment if it doesn't exist
           if [ ! -d venv ]; then
