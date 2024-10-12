@@ -11,51 +11,54 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v2
+      - name: Checkout code
+        uses: actions/checkout@v2
 
-    - name: Set up SSH
-      run: |
-        echo "${{ secrets.SSH_PRIVATE_KEY }}" > private_key
-        chmod 600 private_key  # Set proper permissions for the key
-      
-    - name: Test SSH Connection
-      run: |
-        ssh -o StrictHostKeyChecking=no -i private_key ${{ secrets.VPS_USER }}@${{ secrets.VPS_IP }} "echo 'SSH Connection Successful'"
+      - name: Set up SSH
+        run: |
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > private_key
+          chmod 600 private_key  # Set proper permissions for the key
 
-    - name: Deploy BlackChat to VPS
-      run: |
-        ssh -o StrictHostKeyChecking=no -i private_key ${{ secrets.VPS_USER }}@${{ secrets.VPS_IP }} "
-        set -e  # Exit immediately if a command exits with a non-zero status.
-        
-        # Ensure python3-venv is installed (assuming it’s available without sudo)
-        apt update && apt install -y python3-venv &&
-        
-        # Create the project directory if it doesn't exist
-        mkdir -p /home/projects/BlackChat &&
-        cd /home/projects/BlackChat &&
-        
-        # If there's no git repository, clone it
-        if [ ! -d .git ]; then
-          git clone https://github.com/ministerko/BlackChat.git .;
-        fi &&
-        
-        # Pull the latest code from the master branch
-        git pull origin master &&
-        
-        # Create a virtual environment if it doesn't exist
-        if [ ! -d venv ]; then
-          python3 -m venv venv;
-        fi &&
-        
-        # Activate the virtual environment and install dependencies
-        source venv/bin/activate &&
-        pip install --upgrade pip &&
-        pip install -r requirements.2.txt
-        "
+      - name: Test SSH Connection
+        run: |
+          ssh -o StrictHostKeyChecking=no -i private_key ${{ secrets.VPS_USER }}@${{ secrets.VPS_IP }} "echo 'SSH Connection Successful'"
 
-    - name: Restart FastAPI service
-      run: |
-        ssh -o StrictHostKeyChecking=no -i private_key ${{ secrets.VPS_USER }}@${{ secrets.VPS_IP }} "
-        systemctl restart blackchat
-        "
+      - name: Deploy BlackChat to VPS
+        run: |
+          ssh -o StrictHostKeyChecking=no -i private_key ${{ secrets.VPS_USER }}@${{ secrets.VPS_IP }} "
+          set -e  # Exit immediately if a command exits with a non-zero status.
+          
+          # Update package list and install python3-venv if not present
+          apt update && apt install -y python3-venv
+          
+          # Create the project directory if it doesn't exist
+          mkdir -p /home/projects/BlackChat
+          cd /home/projects/BlackChat
+          
+          # Mark the directory as safe for Git operations
+          git config --global --add safe.directory /home/projects/BlackChat
+          
+          # Clone the repository if it doesn't exist
+          if [ ! -d .git ]; then
+            git clone https://github.com/ministerko/BlackChat.git .
+          fi
+          
+          # Pull the latest changes from the master branch
+          git pull origin master
+          
+          # Create a virtual environment if it doesn't exist
+          if [ ! -d venv ]; then
+            python3 -m venv venv
+          fi
+          
+          # Activate the virtual environment and install dependencies
+          source venv/bin/activate
+          pip install --upgrade pip
+          pip install -r requirements.2.txt
+          "
+
+      - name: Restart FastAPI service
+        run: |
+          ssh -o StrictHostKeyChecking=no -i private_key ${{ secrets.VPS_USER }}@${{ secrets.VPS_IP }} "
+          systemctl restart blackchat
+          "
