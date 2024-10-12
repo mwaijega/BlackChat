@@ -27,30 +27,31 @@ jobs:
         run: |
           ssh -o StrictHostKeyChecking=no -i private_key ${{ secrets.VPS_USER }}@${{ secrets.VPS_IP }} "
           set -e  # Exit immediately if a command exits with a non-zero status.
-          
-          # Update package list and install python3-venv if not present
-          apt update && apt install -y python3-venv
-          
+
+          # Install git and python3-venv if they are missing
+          apt update
+          apt install -y git python3-venv || echo 'Packages already installed'
+
           # Create the project directory if it doesn't exist
           mkdir -p /home/projects/BlackChat
           cd /home/projects/BlackChat
-          
-          # Mark the directory as safe for Git operations
+
+          # Configure Git to treat the directory as safe
           git config --global --add safe.directory /home/projects/BlackChat
-          
-          # Clone the repository if it doesn't exist
+
+          # If there's no git repository, clone it
           if [ ! -d .git ]; then
             git clone https://github.com/ministerko/BlackChat.git .
           fi
-          
-          # Pull the latest changes from the master branch
+
+          # Pull the latest code from the master branch
           git pull origin master
-          
+
           # Create a virtual environment if it doesn't exist
           if [ ! -d venv ]; then
             python3 -m venv venv
           fi
-          
+
           # Activate the virtual environment and install dependencies
           source venv/bin/activate
           pip install --upgrade pip
