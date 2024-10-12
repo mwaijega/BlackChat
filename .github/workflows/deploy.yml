@@ -28,8 +28,8 @@ jobs:
         ssh -o StrictHostKeyChecking=no -i private_key ${{ secrets.VPS_USER }}@${{ secrets.VPS_IP }} "
         set -e  # Exit immediately if a command exits with a non-zero status.
         
-        # Install python3-venv package if not already installed
-        sudo apt update && sudo apt install -y python3-venv &&
+        # Ensure python3-venv is installed (assuming it’s available without sudo)
+        apt update && apt install -y python3-venv &&
         
         # Create the project directory if it doesn't exist
         mkdir -p /home/projects/BlackChat &&
@@ -48,13 +48,8 @@ jobs:
           python3 -m venv venv;
         fi &&
         
-        # Verify virtual environment creation
-        echo 'Checking virtual environment directory:'
-        ls -la venv &&
-        
         # Activate the virtual environment and install dependencies
         source venv/bin/activate &&
-        python --version &&
         pip install --upgrade pip &&
         pip install -r requirements.2.txt
         "
@@ -62,5 +57,5 @@ jobs:
     - name: Restart FastAPI service
       run: |
         ssh -o StrictHostKeyChecking=no -i private_key ${{ secrets.VPS_USER }}@${{ secrets.VPS_IP }} "
-        sudo systemctl restart blackchat
+        systemctl restart blackchat
         "
