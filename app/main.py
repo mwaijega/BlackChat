@@ -10,12 +10,23 @@ import asyncio
 import os
 import logging
 from dotenv import load_dotenv  # Import load_dotenv
+from fastapi.middleware.cors import CORSMiddleware
+
+
 
 # Load environment variables from .env file
 load_dotenv()
 
 app = FastAPI()
 
+# Add CORS middleware to allow requests from all origins
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Adjust this for your needs
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 # Set up logging
 logging.basicConfig(level=logging.INFO)
 
