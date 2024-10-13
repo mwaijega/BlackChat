@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session
 from fastapi import Depends, HTTPException
-from jose import jwt, JWTError
+from jose import jwt,  JWTError
 from passlib.context import CryptContext
 from datetime import datetime, timedelta
 from app.database import SessionLocal, User
