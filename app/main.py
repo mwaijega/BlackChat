@@ -11,26 +11,19 @@ import os
 
 app = FastAPI()
 
-# File where API keys are stored
-API_KEY_FILE = "keys.txt"
+# API Key configuration
 API_KEY_NAME = "access_token"
 api_key_header = APIKeyHeader(name=API_KEY_NAME, auto_error=False)
+
+# Fetch the API key from environment variables
+API_KEY = os.getenv("API_KEY")
 
 # Initialize the database
 init_db()
 
-def load_api_keys(filename: str = API_KEY_FILE) -> set:
-    """Load the API keys from the file into a set."""
-    if not os.path.exists(filename):
-        return set()
-    
-    with open(filename, "r") as f:
-        return set(line.strip() for line in f)
-
-# Function to verify the API key against keys in file
+# Function to verify the API key against the stored API key
 async def get_api_key(api_key: str = Security(api_key_header)):
-    valid_api_keys = load_api_keys()
-    if api_key in valid_api_keys:
+    if api_key == API_KEY:
         return api_key
     raise HTTPException(
         status_code=status.HTTP_403_FORBIDDEN, detail="Could not validate credentials"
