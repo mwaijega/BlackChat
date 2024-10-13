@@ -8,8 +8,14 @@ from app.utils import encrypt_message, decrypt_message
 from datetime import datetime, timedelta
 import asyncio
 import os
+import logging
+
+
 
 app = FastAPI()
+
+# Set up logging
+logging.basicConfig(level=logging.INFO)
 
 # API Key configuration
 API_KEY_NAME = "access_token"
@@ -17,6 +23,10 @@ api_key_header = APIKeyHeader(name=API_KEY_NAME, auto_error=False)
 
 # Fetch the API key from environment variables
 API_KEY = os.getenv("API_KEY")
+
+# Log the API key (for debugging purposes, remove or obfuscate in production)
+logging.info(f"Loaded API_KEY: {API_KEY}")
+
 
 # Initialize the database
 init_db()
