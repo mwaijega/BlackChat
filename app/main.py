@@ -11,6 +11,17 @@ import os
 import logging
 from dotenv import load_dotenv  # Import load_dotenv
 from fastapi.middleware.cors import CORSMiddleware
+import sentry_sdk
+
+sentry_sdk.init(
+    dsn="https://a2c3921a52ca4567e6cf54aa102099ee@o4508129078542336.ingest.us.sentry.io/4508129081032704",
+    # Set traces_sample_rate to 1.0 to capture 100%
+    # of transactions for tracing.
+    traces_sample_rate=0.2,  # Sample 20% of transactions for performance tracing
+    profiles_sample_rate=0.1,  # Sample 10% of transactions for profiling
+)
+
+
 
 
 
