@@ -11,6 +11,7 @@ import os
 import logging
 from dotenv import load_dotenv  # Import load_dotenv
 from fastapi.middleware.cors import CORSMiddleware
+from app.helpers.time import format_received_time
 import sentry_sdk
 
 sentry_sdk.init(
@@ -98,49 +99,74 @@ async def login(user: UserLogin, db: Session = Depends(get_db), api_key: str = D
     access_token = create_access_token(data={"sub": db_user.phone_number})
     return {"access_token": access_token, "token_type": "bearer"}
 
-# Send message (message stored until read)
+# Send message (sender name automatically uses the authenticated user's name)
 @app.post("/send/")
-async def send_message(message: Message, token: str = Depends(get_current_user), db: Session = Depends(get_db), api_key: str = Depends(get_api_key)):
+async def send_message(
+    message: Message,
+    token: str = Depends(get_current_user),
+    db: Session = Depends(get_db),
+    api_key: str = Depends(get_api_key)
+):
+    # Automatically use the authenticated user's phone number as the sender
+    sender_name = token.phone_number  # Assuming token contains the user's phone number
+
+    # Set the expiration time for the message
     expiration_time = datetime.utcnow() + timedelta(seconds=message.expires_in)
 
     # Encrypt the message before storing it
     encrypted_msg = encrypt_message(message.encrypted_message)
 
+    # Store the message in the database with the authenticated sender's name
     db_message = MessageModel(
-        sender=message.sender,
+        sender=sender_name,  # Use the authenticated user's name (phone number)
         recipient=message.recipient,
         encrypted_message=encrypted_msg,
         expires_at=expiration_time
     )
     db.add(db_message)
     db.commit()
-    return {"status": "Message sent"}
 
-# Receive message and mark it as read
+    return {"status": "Message sent successfully", "sender": sender_name}
+
+
+# Receive all messages for the recipient and mark them as read
 @app.get("/receive/{recipient}")
 async def receive_message(recipient: str, token: str = Depends(get_current_user), db: Session = Depends(get_db), api_key: str = Depends(get_api_key)):
-    message = db.query(MessageModel).filter(MessageModel.recipient == recipient).first()
+    # Fetch all messages for the recipient
+    messages = db.query(MessageModel).filter(MessageModel.recipient == recipient).all()
+
+    if not messages:
+        raise HTTPException(status_code=404, detail="No messages for recipient")
+
+    received_messages = []
+
+    # Iterate over each message, decrypt, and mark it as read
+    for message in messages:
+        try:
+            decrypted_msg = decrypt_message(message.encrypted_message)
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=f"Failed to decrypt message: {str(e)}")
+
+        sender = message.sender
+        received_at = datetime.utcnow()  # Get current UTC time for when the message was received
+        formatted_time = format_received_time(received_at)  # Format the received time
+
+        # Append the decrypted message and metadata to the result
+        received_messages.append({
+            "sender": sender,
+            "decrypted_message": decrypted_msg,
+            "received_at": formatted_time
+        })
+
+        # Delete the message from the database after it has been read
+        db.delete(message)
     
-    if not message:
-        raise HTTPException(status_code=404, detail="No message for recipient")
-
-    # Decrypt the message
-    try:
-        decrypted_msg = decrypt_message(message.encrypted_message)
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Failed to decrypt message: {str(e)}")
-
-    # Store the sender before deleting the message
-    sender = message.sender
-
-    # Delete the message from the database after it has been read
-    db.delete(message)
-    db.commit()
+    db.commit()  # Commit the deletion of all read messages
 
     return {
-        "sender": sender,
-        "decrypted_message": decrypted_msg
+        "messages": received_messages  # Return all decrypted messages
     }
+
 
 # Check message read status (if needed)
 @app.get("/message_status/{recipient}")
