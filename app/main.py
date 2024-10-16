@@ -78,6 +78,7 @@ async def delete_expired_messages():
         db.commit()
 
 # Start the background task
+
 @app.on_event("startup")
 async def startup_event():
     asyncio.create_task(delete_expired_messages())
