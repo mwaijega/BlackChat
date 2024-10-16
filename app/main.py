@@ -130,11 +130,17 @@ async def receive_message(recipient: str, token: str = Depends(get_current_user)
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Failed to decrypt message: {str(e)}")
 
+    # Store the sender before deleting the message
+    sender = message.sender
+
     # Delete the message from the database after it has been read
     db.delete(message)
     db.commit()
 
-    return {"decrypted_message": decrypted_msg}
+    return {
+        "sender": sender,
+        "decrypted_message": decrypted_msg
+    }
 
 # Check message read status (if needed)
 @app.get("/message_status/{recipient}")
