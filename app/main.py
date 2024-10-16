@@ -57,6 +57,11 @@ else:
 # Initialize the database
 init_db()
 
+@app.get("/sentry-debug")
+async def trigger_error():
+    division_by_zero = 1 / 0
+      
+
 # Function to verify the API key against the stored API key
 async def get_api_key(api_key: str = Security(api_key_header)):
     if api_key == API_KEY:
