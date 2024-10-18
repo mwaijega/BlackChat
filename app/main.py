@@ -3,31 +3,25 @@ from fastapi.security import APIKeyHeader
 from sqlalchemy.orm import Session
 from app.models import Message, UserCreate, UserLogin
 from app.auth import create_user, authenticate_user, create_access_token, get_current_user
-from app.database import get_db, Message as MessageModel, init_db
-from app.utils import encrypt_message, decrypt_message
+from app.database import get_db, MessageDB as MessageModel, init_db
 from datetime import datetime, timedelta
 import asyncio
 import os
 import logging
-from dotenv import load_dotenv  # Import load_dotenv
+from dotenv import load_dotenv
 from fastapi.middleware.cors import CORSMiddleware
 from app.helpers.time import format_received_time
 import sentry_sdk
 
-sentry_sdk.init(
-    dsn="https://a2c3921a52ca4567e6cf54aa102099ee@o4508129078542336.ingest.us.sentry.io/4508129081032704",
-    # Set traces_sample_rate to 1.0 to capture 100%
-    # of transactions for tracing.
-    traces_sample_rate=0.2,  # Sample 20% of transactions for performance tracing
-    profiles_sample_rate=0.1,  # Sample 10% of transactions for profiling
-)
-
-
-
-
-
 # Load environment variables from .env file
 load_dotenv()
+
+# Sentry initialization
+sentry_sdk.init(
+    dsn=os.getenv("DSN"),
+    traces_sample_rate=0.2,
+    profiles_sample_rate=0.1,
+)
 
 app = FastAPI()
 
@@ -39,6 +33,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
 # Set up logging
 logging.basicConfig(level=logging.INFO)
 
@@ -49,7 +44,6 @@ api_key_header = APIKeyHeader(name=API_KEY_NAME, auto_error=False)
 # Fetch the API key from environment variables
 API_KEY = os.getenv("API_KEY")
 
-# Log the API key (for debugging purposes, remove or obfuscate in production)
 if API_KEY:
     logging.info("Loaded API_KEY: [PROTECTED]")  # Obfuscate for security
 else:
@@ -58,7 +52,7 @@ else:
 # Initialize the database
 init_db()
 
-# Function to verify the API key against the stored API key
+# Verify the API key
 async def get_api_key(api_key: str = Security(api_key_header)):
     if api_key == API_KEY:
         return api_key
@@ -71,15 +65,14 @@ async def delete_expired_messages():
     while True:
         await asyncio.sleep(10)  # Check every 10 seconds
         current_time = datetime.utcnow()
-        db: Session = next(get_db())  # Get a session to use in the task
+        db: Session = next(get_db())
         expired_messages = db.query(MessageModel).filter(MessageModel.expires_at < current_time).all()
-        
+
         for message in expired_messages:
             db.delete(message)
         db.commit()
 
 # Start the background task
-
 @app.on_event("startup")
 async def startup_event():
     asyncio.create_task(delete_expired_messages())
@@ -107,20 +100,13 @@ async def send_message(
     db: Session = Depends(get_db),
     api_key: str = Depends(get_api_key)
 ):
-    # Automatically use the authenticated user's phone number as the sender
-    sender_name = token.phone_number  # Assuming token contains the user's phone number
-
-    # Set the expiration time for the message
+    sender_name = token.phone_number
     expiration_time = datetime.utcnow() + timedelta(seconds=message.expires_in)
 
-    # Encrypt the message before storing it
-    encrypted_msg = encrypt_message(message.encrypted_message)
-
-    # Store the message in the database with the authenticated sender's name
     db_message = MessageModel(
-        sender=sender_name,  # Use the authenticated user's name (phone number)
+        sender=sender_name,
         recipient=message.recipient,
-        encrypted_message=encrypted_msg,
+        encrypted_message=message.encrypted_message,  # Store the message as plain text
         expires_at=expiration_time
     )
     db.add(db_message)
@@ -128,11 +114,10 @@ async def send_message(
 
     return {"status": "Message sent successfully", "sender": sender_name}
 
-
-# Receive all messages for the recipient and mark them as read
-@app.get("/receive/{recipient}")
-async def receive_message(recipient: str, token: str = Depends(get_current_user), db: Session = Depends(get_db), api_key: str = Depends(get_api_key)):
-    # Fetch all messages for the recipient
+# Receive all messages for the recipient (automatically fetch the recipient based on the authenticated user)
+@app.get("/receive/")
+async def receive_message(token: str = Depends(get_current_user), db: Session = Depends(get_db), api_key: str = Depends(get_api_key)):
+    recipient = token.phone_number  # Automatically use the authenticated user's phone number as the recipient
     messages = db.query(MessageModel).filter(MessageModel.recipient == recipient).all()
 
     if not messages:
@@ -140,37 +125,22 @@ async def receive_message(recipient: str, token: str = Depends(get_current_user)
 
     received_messages = []
 
-    # Iterate over each message, decrypt, and mark it as read
     for message in messages:
-        try:
-            decrypted_msg = decrypt_message(message.encrypted_message)
-        except Exception as e:
-            raise HTTPException(status_code=400, detail=f"Failed to decrypt message: {str(e)}")
-
-        sender = message.sender
-        received_at = datetime.utcnow()  # Get current UTC time for when the message was received
-        formatted_time = format_received_time(received_at)  # Format the received time
-
-        # Append the decrypted message and metadata to the result
         received_messages.append({
-            "sender": sender,
-            "decrypted_message": decrypted_msg,
-            "received_at": formatted_time
+            "sender": message.sender,
+            "decrypted_message": message.encrypted_message,  # No decryption needed, it's stored as plain text
+            "received_at": format_received_time(datetime.utcnow())
         })
 
-        # Delete the message from the database after it has been read
         db.delete(message)
-    
-    db.commit()  # Commit the deletion of all read messages
 
-    return {
-        "messages": received_messages  # Return all decrypted messages
-    }
+    db.commit()
+    return {"messages": received_messages}
 
-
-# Check message read status (if needed)
-@app.get("/message_status/{recipient}")
-async def message_status(recipient: str, db: Session = Depends(get_db), api_key: str = Depends(get_api_key)):
+# Check message read status
+@app.get("/message_status/")
+async def message_status(token: str = Depends(get_current_user), db: Session = Depends(get_db), api_key: str = Depends(get_api_key)):
+    recipient = token.phone_number  # Automatically use the authenticated user's phone number as the recipient
     message = db.query(MessageModel).filter(MessageModel.recipient == recipient).first()
     if message:
         return {"status": "Message exists"}

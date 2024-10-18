@@ -1,7 +1,7 @@
 from sqlalchemy import create_engine, Column, String, Integer, DateTime
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
-from datetime import datetime
+from datetime import datetime, timedelta
 
 # Database URL for SQLite
 SQLALCHEMY_DATABASE_URL = "sqlite:///./super_private_chat.db"
@@ -24,8 +24,8 @@ class User(Base):
     def __repr__(self):
         return f"<User(id={self.id}, phone_number={self.phone_number})>"
 
-# Database model for messages
-class Message(Base):
+# Database model for messages (renamed to MessageDB to avoid confusion with Pydantic model)
+class MessageDB(Base):
     __tablename__ = "messages"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -36,7 +36,11 @@ class Message(Base):
     expires_at = Column(DateTime)
 
     def __repr__(self):
-        return f"<Message(id={self.id}, sender={self.sender}, recipient={self.recipient})>"
+        return f"<MessageDB(id={self.id}, sender={self.sender}, recipient={self.recipient})>"
+
+    def set_expiry(self, expires_in: int):
+        """Set the expiration time of the message."""
+        self.expires_at = datetime.utcnow() + timedelta(seconds=expires_in)
 
 # Initialize the database
 def init_db():

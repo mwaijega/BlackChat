@@ -1,8 +1,7 @@
 from pydantic import BaseModel
 
-# Message data model
+# Message data model (No need for sender, it's automatically assigned based on the authenticated user)
 class Message(BaseModel):
-    sender: str
     recipient: str
     encrypted_message: str
     expires_in: int  # Time in seconds before message self-destructs
