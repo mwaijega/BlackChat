@@ -38,12 +38,10 @@ def authenticate_user(db: Session, phone_number: str, password: str):
 # Create a JWT token
 def create_access_token(data: dict, expires_delta: timedelta = None):
     to_encode = data.copy()
-    # Remove expiration logic
-    if expires_delta is not None:
+    if expires_delta:
         expire = datetime.utcnow() + expires_delta
-    else:
-        expire = None  # No expiration
-    to_encode.update({"exp": expire})
+        to_encode.update({"exp": expire})  # Add 'exp' claim only if it has an expiration
+    # If no expiration, do not include 'exp' claim
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
 
