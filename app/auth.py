@@ -1,15 +1,15 @@
 from sqlalchemy.orm import Session
 from fastapi import Depends, HTTPException
-from jose import jwt,  JWTError
+from jose import jwt, JWTError
 from passlib.context import CryptContext
-from datetime import datetime, timedelta
 from app.database import SessionLocal, User
+from dotenv import load_dotenv
+import os
 
+load_dotenv()
 
-
-SECRET_KEY = "supersecretkey"
+SECRET_KEY = os.getenv("SECRET_KEY")
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = None  # No expiration
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 # Dependency for getting the database session
@@ -27,6 +27,7 @@ def create_user(db: Session, phone_number: str, password: str):
     db.add(user)
     db.commit()
     db.refresh(user)
+    return user  # Optional: return the created user
 
 # Authenticate user by checking their password
 def authenticate_user(db: Session, phone_number: str, password: str):
@@ -35,13 +36,10 @@ def authenticate_user(db: Session, phone_number: str, password: str):
         return False
     return user
 
-# Create a JWT token
-def create_access_token(data: dict, expires_delta: timedelta = None):
+# Create a non-expiring JWT token
+def create_access_token(data: dict):
     to_encode = data.copy()
-    if expires_delta:
-        expire = datetime.utcnow() + expires_delta
-        to_encode.update({"exp": expire})  # Add 'exp' claim only if it has an expiration
-    # If no expiration, do not include 'exp' claim
+    # Do not include 'exp' claim
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
 
