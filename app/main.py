@@ -143,5 +143,10 @@ async def message_status(token: str = Depends(get_current_user), db: Session = D
     recipient = token.phone_number  # Automatically use the authenticated user's phone number as the recipient
     message = db.query(MessageModel).filter(MessageModel.recipient == recipient).first()
     if message:
-        return {"status": "Message exists"}
+        preview_message = message.encrypted_message[:10]+"..." if len(message.encrypted_message)>10 else  message.encrypted_message
+        return {
+            "status": "Message exists",
+            "sender":message.sender,
+            "time":format_received_time(message.created_at),
+            "message":preview_message}
     return {"status": "No message for recipient"}
