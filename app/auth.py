@@ -5,9 +5,11 @@ from passlib.context import CryptContext
 from datetime import datetime, timedelta
 from app.database import SessionLocal, User
 
+
+
 SECRET_KEY = "supersecretkey"
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 30
+ACCESS_TOKEN_EXPIRE_MINUTES = None  # No expiration
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 # Dependency for getting the database session
@@ -36,10 +38,11 @@ def authenticate_user(db: Session, phone_number: str, password: str):
 # Create a JWT token
 def create_access_token(data: dict, expires_delta: timedelta = None):
     to_encode = data.copy()
-    if expires_delta:
+    # Remove expiration logic
+    if expires_delta is not None:
         expire = datetime.utcnow() + expires_delta
     else:
-        expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+        expire = None  # No expiration
     to_encode.update({"exp": expire})
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
